@@ -15,7 +15,7 @@ import (
 	"url-shortener/internal/http-server/save"
 	"url-shortener/internal/http-server/update"
 	"url-shortener/internal/logger"
-	"url-shortener/internal/storage/sqlite"
+	"url-shortener/internal/storage/mongodb"
 )
 
 func main() {
@@ -26,8 +26,10 @@ func main() {
 	log := logger.MustSetup(cfg.Env)
 	log.Info("logger started")
 
+	log.Info("", slog.String("uri", cfg.DBConfig.ConnectionString), slog.Duration("timeout", cfg.DBConfig.Timeout))
+
 	// TODO: init database
-	s := sqlite.MustNew(context.Background(), cfg.StoragePath)
+	s := mongodb.MustNew(cfg.DBConfig.ConnectionString, cfg.DBConfig.Timeout)
 	log.Info("database started")
 
 	// TODO: init server
@@ -68,7 +70,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := s.Close(); err != nil {
+	if err := s.Close(ctx); err != nil {
 		log.Error("failed to close db", slog.String("error", err.Error()))
 	}
 

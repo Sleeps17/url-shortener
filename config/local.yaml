@@ -1,5 +1,6 @@
 env: "local" #local, dev, prod
-storage_path: "./storage/data.db"
+sqlite_config:
+  storage_path: "./storage/data.db"
 http_server:
   port: ":8080"
   timeout: 5s

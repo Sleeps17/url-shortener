@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/gavv/httpexpect/v2"
 	"github.com/stretchr/testify/assert"
@@ -73,8 +72,17 @@ func TestUrlShortener_Save(t *testing.T) {
 		{
 			name: "Normal save 4",
 			body: map[string]interface{}{
-				"url":   gofakeit.URL(),
-				"alias": "kaif2",
+				"url":   "https://leetcode.com",
+				"alias": "leetcode",
+			},
+			expectedStatusCode: 200,
+			expectedErr:        false,
+		},
+		{
+			name: "Normal save 5",
+			body: map[string]interface{}{
+				"url":   "https://neetcode.io",
+				"alias": "neetcode",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
@@ -82,7 +90,7 @@ func TestUrlShortener_Save(t *testing.T) {
 		{
 			name: "Alias already exists",
 			body: map[string]interface{}{
-				"url":   gofakeit.Word() + "_" + gofakeit.Word(),
+				"url":   gofakeit.URL(),
 				"alias": "leetcode",
 			},
 			expectedStatusCode: 400,
@@ -156,13 +164,13 @@ func TestUrlShortener_Redirect(t *testing.T) {
 	}{
 		{
 			name:               "Normal Redirect 1",
-			alias:              "hell",
+			alias:              "leetcode",
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
 		{
 			name:               "Normal Redirect 2",
-			alias:              "jump2",
+			alias:              "neetcode",
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
@@ -198,7 +206,7 @@ func TestUrlShortener_Redirect(t *testing.T) {
 
 			assert.NoError(t, err)
 
-			assert.Equal(t, resp.StatusCode, tt.expectedStatusCode)
+			assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
 		})
 	}
 }
@@ -213,7 +221,7 @@ func TestUrlShortener_Update(t *testing.T) {
 		{
 			name: "Normal update 1",
 			body: map[string]interface{}{
-				"alias":     "zzz123",
+				"alias":     "leetcode",
 				"new_alias": "zzz",
 			},
 			expectedStatusCode: 200,
@@ -223,7 +231,7 @@ func TestUrlShortener_Update(t *testing.T) {
 			name: "Normal update 2",
 			body: map[string]interface{}{
 				"alias":     "zzz",
-				"new_alias": "zzz123",
+				"new_alias": "leetcode",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
@@ -240,8 +248,8 @@ func TestUrlShortener_Update(t *testing.T) {
 		{
 			name: "NewAlias already exists",
 			body: map[string]interface{}{
-				"alias":     "jump2",
-				"new_alias": "zzz123",
+				"alias":     "neetcode",
+				"new_alias": "leetcode",
 			},
 			expectedStatusCode: 400,
 			expectedErr:        true,
@@ -290,7 +298,7 @@ func TestUrlShortener_Delete(t *testing.T) {
 		{
 			name: "Normal delete 1",
 			body: map[string]interface{}{
-				"alias": "kaif",
+				"alias": "leetcode",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
@@ -298,7 +306,15 @@ func TestUrlShortener_Delete(t *testing.T) {
 		{
 			name: "Normal delete 2",
 			body: map[string]interface{}{
-				"alias": "kaif2",
+				"alias": "neetcode",
+			},
+			expectedStatusCode: 200,
+			expectedErr:        false,
+		},
+		{
+			name: "Normal delete 3",
+			body: map[string]interface{}{
+				"alias": "kaif",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
@@ -348,9 +364,7 @@ func TestUrlShortener_Delete(t *testing.T) {
 			assert.NoError(t, json.Unmarshal(jsonData, &data))
 
 			assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
-			if assert.Equal(t, tt.expectedErr, data["status"].(string) == "Error") {
-				fmt.Println(data["error"].(string))
-			}
+			assert.Equal(t, tt.expectedErr, data["status"].(string) == "Error")
 		})
 	}
 }

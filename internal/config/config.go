@@ -7,9 +7,18 @@ import (
 )
 
 type Config struct {
-	Env         string           `yaml:"env"`
-	StoragePath string           `yaml:"storage_path"`
-	HttpServer  HttpServerConfig `yaml:"http_server"`
+	Env        string           `yaml:"env"`
+	DBConfig   MongoDBConfig    `yaml:"mongodb_config"`
+	HttpServer HttpServerConfig `yaml:"http_server"`
+}
+
+type SQLiteConfig struct {
+	StoragePath string `yaml:"storage_path"`
+}
+
+type MongoDBConfig struct {
+	ConnectionString string        `yaml:"connection_string"`
+	Timeout          time.Duration `yaml:"timeout"`
 }
 
 type HttpServerConfig struct {

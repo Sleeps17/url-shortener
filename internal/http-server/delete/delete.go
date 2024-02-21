@@ -14,7 +14,7 @@ type Request struct {
 
 type Response struct {
 	Status string `json:"status"`
-	Error  string `json:"error"`
+	Error  string `json:"error,omitempty"`
 }
 
 type Decorator func(response *Response)
