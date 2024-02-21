@@ -95,28 +95,34 @@ func (s *Store) DeleteURL(ctx context.Context, alias string) error {
 
 	query := `DELETE FROM urls WHERE alias = ?`
 
-	_, err := s.db.ExecContext(ctx, query, alias)
+	res, err := s.db.ExecContext(ctx, query, alias)
 	if err != nil {
-		if errors.Is(err, sqlite3.ErrNotFound) {
-			return storage.ErrAliasNotFound
-		}
 		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if cnt, _ := res.RowsAffected(); cnt == int64(0) {
+		return storage.ErrAliasNotFound
 	}
 
 	return nil
 }
 
-func (s *Store) UpdateAlias(ctx context.Context, url, newAlias string) error {
+func (s *Store) UpdateAlias(ctx context.Context, alias, newAlias string) error {
 	const op = "sqlite.UpdateAlias"
 
-	query := `UPDATE urls SET alias = ? WHERE url = ?`
+	query := `UPDATE urls SET alias = ? WHERE alias = ?`
 
-	_, err := s.db.ExecContext(ctx, query, newAlias, url)
+	res, err := s.db.ExecContext(ctx, query, newAlias, alias)
 	if err != nil {
-		if errors.Is(err, sqlite3.ErrNotFound) {
-			return storage.ErrUrlNotFound
+		var sqlErr sqlite3.Error
+		if errors.As(err, &sqlErr) && errors.Is(sqlErr.ExtendedCode, sqlite3.ErrConstraintUnique) {
+			return storage.ErrNewAliasAlreadyExists
 		}
 		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if cnt, _ := res.RowsAffected(); cnt == int64(0) {
+		return storage.ErrAliasNotFound
 	}
 
 	return nil

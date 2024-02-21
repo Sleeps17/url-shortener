@@ -1,17 +1,15 @@
 package random
 
 import (
-	"fmt"
 	"math/rand"
 )
 
 const defaultAliasLength = 16
 
-func Alias(length ...int) (string, error) {
-	const op = "random.Alias"
+func Alias(length ...int) string {
 
 	if len(length) > 1 {
-		return "", fmt.Errorf("%s: too many arguments", op)
+		return ""
 	}
 
 	l := 0
@@ -21,6 +19,10 @@ func Alias(length ...int) (string, error) {
 		l = defaultAliasLength
 	}
 
+	if l < 0 {
+		return ""
+	}
+
 	symbols := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	alias := make([]byte, 0, l)
 
@@ -28,5 +30,5 @@ func Alias(length ...int) (string, error) {
 		alias = append(alias, symbols[rand.Intn(len(symbols))])
 	}
 
-	return string(alias), nil
+	return string(alias)
 }

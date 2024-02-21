@@ -3,6 +3,7 @@ package save
 import (
 	"errors"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"log/slog"
 	httpServer "url-shortener/internal/http-server"
 	"url-shortener/internal/lib/random"
@@ -61,10 +62,16 @@ func Save(log *slog.Logger, s storage.Storage) gin.HandlerFunc {
 			return
 		}
 
+		if err := validator.New().Struct(req); err != nil {
+			log.Error(err.Error(), slog.String("op", op))
+			c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.BadRequest)))
+			return
+		}
+
 		if req.Alias == "" {
-			alias, err := random.Alias()
-			if err != nil {
-				log.Error(err.Error(), slog.String("op", op))
+			alias := random.Alias()
+			if alias == "" {
+				log.Error("failed to generate alias", slog.String("op", op))
 				c.JSON(500, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.InternalError)))
 				return
 			}

@@ -6,11 +6,11 @@ const (
 )
 
 const (
-	InternalError     = "internal error"
-	BadRequest        = "bad request"
-	AliasAlreadyExist = "alias already exist"
-	AliasNotFound     = "alias not found"
-	UrlNotFound       = "url not found"
+	InternalError         = "internal error"
+	BadRequest            = "bad request"
+	AliasAlreadyExist     = "alias already exist"
+	AliasNotFound         = "alias not found"
+	NewAliasAlreadyExists = "new_alias cannot use, url with this alias already exists"
 )
 
 const (

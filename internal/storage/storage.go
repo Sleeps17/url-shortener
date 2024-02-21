@@ -18,7 +18,8 @@ type Storage interface {
 }
 
 var (
-	ErrAliasNotFound     = errors.New("alias not found")
-	ErrAliasAlreadyExist = errors.New("alias already exist")
-	ErrUrlNotFound       = errors.New("url not found")
+	ErrAliasNotFound         = errors.New("alias not found")
+	ErrAliasAlreadyExist     = errors.New("alias already exist")
+	ErrNewAliasAlreadyExists = errors.New("new_alias cannot use, url with this alias already exists")
+	ErrUrlNotFound           = errors.New("url not found")
 )
