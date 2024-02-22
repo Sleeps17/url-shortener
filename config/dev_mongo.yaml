@@ -1,7 +1,7 @@
 env: "local"
 mongodb_config:
-  connection_string: "mongodb://localhost:27017"
-  timeout: 5s
+  connection_string: "mongodb://mongodb:27017"
+  timeout: 20s
 http_server:
   port: ":8080"
   timeout: 5s

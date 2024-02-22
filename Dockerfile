@@ -11,7 +11,7 @@ COPY . .
 
 RUN go build -o url-shortener ./cmd/url-shortener
 
-ENV CONFIG_PATH=./config/local.yaml
+ENV CONFIG_PATH=./config/dev_mongo.yaml
 
 EXPOSE 8080
 

@@ -14,5 +14,5 @@ const (
 )
 
 const (
-	Path = "http://localhost:8080/"
+	Path = "http://mongodb:8080/"
 )
