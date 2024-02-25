@@ -6,14 +6,22 @@ import (
 	"errors"
 	"fmt"
 	"github.com/mattn/go-sqlite3"
+	"url-shortener/internal/cache"
+	mapCache "url-shortener/internal/cache/map-cache"
 	"url-shortener/internal/storage"
 )
 
 type Store struct {
-	db *sql.DB
+	db    *sql.DB
+	cache cache.Cache
 }
 
 func MustNew(ctx context.Context, storagePath string) *Store {
+
+	c, err := mapCache.New(storage.DefaultCacheCapacity)
+	if err != nil {
+		panic(err)
+	}
 
 	db, err := sql.Open("sqlite3", storagePath)
 	if err != nil {
@@ -39,11 +47,35 @@ func MustNew(ctx context.Context, storagePath string) *Store {
 		panic(err)
 	}
 
-	return &Store{db: db}
+	return &Store{db: db, cache: c}
 }
 
-func (s *Store) Close() error {
-	return s.db.Close()
+func (s *Store) Close(ctx context.Context) error {
+
+	res := make(chan error)
+	defer close(res)
+
+	go func() {
+		err1 := s.cache.Close(ctx)
+		err2 := s.db.Close()
+
+		if err1 != nil && err2 != nil {
+			res <- fmt.Errorf("%w && %w", err1, err2)
+		} else if err1 != nil {
+			res <- err1
+		} else if err2 != nil {
+			res <- err2
+		}
+
+		res <- nil
+	}()
+
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("time is out")
+	case err := <-res:
+		return err
+	}
 }
 
 func (s *Store) SaveURL(ctx context.Context, url, alias string) error {

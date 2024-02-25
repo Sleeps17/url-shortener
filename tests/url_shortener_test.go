@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"testing"
 	"url-shortener/internal/http-server/save"
 	"url-shortener/internal/lib/random"
@@ -127,32 +128,42 @@ func TestUrlShortener_Save(t *testing.T) {
 		Host:   host,
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			jsonBody, err := json.Marshal(tt.body)
-			assert.NoError(t, err)
+	var wg sync.WaitGroup
 
-			req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewBuffer(jsonBody))
-			assert.NoError(t, err)
+	for range 1 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					jsonBody, err := json.Marshal(tt.body)
+					assert.NoError(t, err)
 
-			req.SetBasicAuth("pasha", "1234")
+					req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewBuffer(jsonBody))
+					assert.NoError(t, err)
 
-			resp, err := http.DefaultClient.Do(req)
-			assert.NoError(t, err)
+					req.SetBasicAuth("pasha", "1234")
 
-			defer func() { _ = resp.Body.Close() }()
+					resp, err := http.DefaultClient.Do(req)
+					assert.NoError(t, err)
 
-			jsonData, err := io.ReadAll(resp.Body)
-			assert.NoError(t, err)
+					defer func() { _ = resp.Body.Close() }()
 
-			var data map[string]interface{}
-			err = json.Unmarshal(jsonData, &data)
-			assert.NoError(t, err)
+					jsonData, err := io.ReadAll(resp.Body)
+					assert.NoError(t, err)
 
-			assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
-			assert.Equal(t, data["status"].(string) == "Error", tt.expectedErr)
-		})
+					var data map[string]interface{}
+					err = json.Unmarshal(jsonData, &data)
+					assert.NoError(t, err)
+
+					assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
+					assert.Equal(t, data["status"].(string) == "Error", tt.expectedErr)
+				})
+			}
+		}()
 	}
+
+	wg.Wait()
 }
 
 func TestUrlShortener_Redirect(t *testing.T) {
@@ -188,27 +199,36 @@ func TestUrlShortener_Redirect(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			u := url.URL{
-				Scheme: scheme,
-				Host:   host,
-				Path:   tt.alias,
+	var wg sync.WaitGroup
+
+	for range 1 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					u := url.URL{
+						Scheme: scheme,
+						Host:   host,
+						Path:   tt.alias,
+					}
+
+					req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+					assert.NoError(t, err)
+
+					resp, err := http.DefaultClient.Do(req)
+					assert.NoError(t, err)
+
+					defer func() { _ = resp.Body.Close() }()
+
+					assert.NoError(t, err)
+
+					assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
+				})
 			}
-
-			req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-			assert.NoError(t, err)
-
-			resp, err := http.DefaultClient.Do(req)
-			assert.NoError(t, err)
-
-			defer func() { _ = resp.Body.Close() }()
-
-			assert.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
-		})
+		}()
 	}
+	wg.Wait()
 }
 
 func TestUrlShortener_Update(t *testing.T) {
@@ -222,7 +242,7 @@ func TestUrlShortener_Update(t *testing.T) {
 			name: "Normal update 1",
 			body: map[string]interface{}{
 				"alias":     "leetcode",
-				"new_alias": "zzz",
+				"new_alias": "zayac",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
@@ -230,8 +250,8 @@ func TestUrlShortener_Update(t *testing.T) {
 		{
 			name: "Normal update 2",
 			body: map[string]interface{}{
-				"alias":     "zzz",
-				"new_alias": "leetcode",
+				"alias":     "neetcode",
+				"new_alias": "neet",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
@@ -248,44 +268,53 @@ func TestUrlShortener_Update(t *testing.T) {
 		{
 			name: "NewAlias already exists",
 			body: map[string]interface{}{
-				"alias":     "neetcode",
-				"new_alias": "leetcode",
+				"alias":     "neet",
+				"new_alias": "zayac",
 			},
 			expectedStatusCode: 400,
 			expectedErr:        true,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			u := url.URL{
-				Scheme: scheme,
-				Host:   host,
+	var wg sync.WaitGroup
+
+	for range 1 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					u := url.URL{
+						Scheme: scheme,
+						Host:   host,
+					}
+
+					jsonBody, err := json.Marshal(tt.body)
+					assert.NoError(t, err)
+
+					req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(jsonBody))
+					assert.NoError(t, err)
+
+					req.SetBasicAuth("pasha", "1234")
+
+					resp, err := http.DefaultClient.Do(req)
+					assert.NoError(t, err)
+
+					defer func() { _ = resp.Body.Close() }()
+
+					jsonData, err := io.ReadAll(resp.Body)
+					assert.NoError(t, err)
+
+					var data map[string]interface{}
+					assert.NoError(t, json.Unmarshal(jsonData, &data))
+
+					assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
+					assert.Equal(t, tt.expectedErr, data["status"].(string) == "Error")
+				})
 			}
-
-			jsonBody, err := json.Marshal(tt.body)
-			assert.NoError(t, err)
-
-			req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(jsonBody))
-			assert.NoError(t, err)
-
-			req.SetBasicAuth("pasha", "1234")
-
-			resp, err := http.DefaultClient.Do(req)
-			assert.NoError(t, err)
-
-			defer func() { _ = resp.Body.Close() }()
-
-			jsonData, err := io.ReadAll(resp.Body)
-			assert.NoError(t, err)
-
-			var data map[string]interface{}
-			assert.NoError(t, json.Unmarshal(jsonData, &data))
-
-			assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
-			assert.Equal(t, tt.expectedErr, data["status"].(string) == "Error")
-		})
+		}()
 	}
+	wg.Wait()
 }
 
 func TestUrlShortener_Delete(t *testing.T) {
@@ -298,7 +327,7 @@ func TestUrlShortener_Delete(t *testing.T) {
 		{
 			name: "Normal delete 1",
 			body: map[string]interface{}{
-				"alias": "leetcode",
+				"alias": "zayac",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
@@ -306,7 +335,7 @@ func TestUrlShortener_Delete(t *testing.T) {
 		{
 			name: "Normal delete 2",
 			body: map[string]interface{}{
-				"alias": "neetcode",
+				"alias": "neet",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
@@ -337,34 +366,43 @@ func TestUrlShortener_Delete(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			u := url.URL{
-				Scheme: scheme,
-				Host:   host,
+	var wg sync.WaitGroup
+
+	for range 1 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					u := url.URL{
+						Scheme: scheme,
+						Host:   host,
+					}
+
+					jsonBody, err := json.Marshal(tt.body)
+					assert.NoError(t, err)
+
+					req, err := http.NewRequest(http.MethodDelete, u.String(), bytes.NewBuffer(jsonBody))
+					assert.NoError(t, err)
+
+					req.SetBasicAuth("pasha", "1234")
+
+					resp, err := http.DefaultClient.Do(req)
+					assert.NoError(t, err)
+
+					defer func() { _ = resp.Body.Close() }()
+
+					jsonData, err := io.ReadAll(resp.Body)
+					assert.NoError(t, err)
+
+					var data map[string]interface{}
+					assert.NoError(t, json.Unmarshal(jsonData, &data))
+
+					assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
+					assert.Equal(t, tt.expectedErr, data["status"].(string) == "Error")
+				})
 			}
-
-			jsonBody, err := json.Marshal(tt.body)
-			assert.NoError(t, err)
-
-			req, err := http.NewRequest(http.MethodDelete, u.String(), bytes.NewBuffer(jsonBody))
-			assert.NoError(t, err)
-
-			req.SetBasicAuth("pasha", "1234")
-
-			resp, err := http.DefaultClient.Do(req)
-			assert.NoError(t, err)
-
-			defer func() { _ = resp.Body.Close() }()
-
-			jsonData, err := io.ReadAll(resp.Body)
-			assert.NoError(t, err)
-
-			var data map[string]interface{}
-			assert.NoError(t, json.Unmarshal(jsonData, &data))
-
-			assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
-			assert.Equal(t, tt.expectedErr, data["status"].(string) == "Error")
-		})
+		}()
 	}
+	wg.Wait()
 }

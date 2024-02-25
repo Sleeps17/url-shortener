@@ -15,11 +15,22 @@ type Storage interface {
 	DeleteURL(ctx context.Context, alias string) error
 	//UpdateAlias replaces {alias} for {url}
 	UpdateAlias(ctx context.Context, oldAlias, newAlias string) error
+
+	Close(ctx context.Context) error
 }
 
 var (
 	ErrAliasNotFound         = errors.New("alias not found")
 	ErrAliasAlreadyExist     = errors.New("alias already exist")
 	ErrNewAliasAlreadyExists = errors.New("new_alias cannot use, url with this alias already exists")
-	ErrUrlNotFound           = errors.New("url not found")
+)
+
+var (
+	ErrCacheSet    = errors.New("failed too save url in cache")
+	ErrCacheUpdate = errors.New("failed to update cache")
+	ErrCacheDelete = errors.New("failed to delete alias from cache")
+)
+
+const (
+	DefaultCacheCapacity = 30
 )

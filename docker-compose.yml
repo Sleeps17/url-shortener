@@ -7,6 +7,11 @@ services:
       - "27018:27017"
     volumes:
       - "mongodb_data:/data/db"
+  redis:
+    image: redis
+    container_name: redis_db
+    ports:
+      - "6379:6379"
   url-shortener:
     build: .
     container_name: url_shortener
@@ -14,5 +19,7 @@ services:
       - "8080:8080"
     depends_on:
       - mongodb
+      - redis
+    #network_mode: "host"
 volumes:
   mongodb_data:

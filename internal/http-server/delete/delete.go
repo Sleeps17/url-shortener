@@ -53,6 +53,11 @@ func Delete(log *slog.Logger, s storage.Storage) gin.HandlerFunc {
 		}
 
 		if err := s.DeleteURL(c, req.Alias); err != nil {
+			if errors.Is(err, storage.ErrCacheDelete) {
+				log.Error(err.Error(), slog.String("op", op))
+				c.JSON(200, NewResponse(SetStatus(httpServer.StatusOK)))
+				return
+			}
 			if errors.Is(err, storage.ErrAliasNotFound) {
 				c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.AliasNotFound)))
 				return

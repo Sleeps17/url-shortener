@@ -26,8 +26,6 @@ func main() {
 	log := logger.MustSetup(cfg.Env)
 	log.Info("logger started")
 
-	log.Info("", slog.String("uri", cfg.DBConfig.ConnectionString), slog.Duration("timeout", cfg.DBConfig.Timeout))
-
 	// TODO: init database
 	s := mongodb.MustNew(cfg.DBConfig.ConnectionString, cfg.DBConfig.Timeout)
 	log.Info("database started")
@@ -62,6 +60,7 @@ func main() {
 
 	// TODO: graceful shutdown
 	done := make(chan os.Signal, 1)
+	defer close(done)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 
 	<-done

@@ -79,6 +79,11 @@ func Save(log *slog.Logger, s storage.Storage) gin.HandlerFunc {
 		}
 
 		if err := s.SaveURL(c, req.Url, req.Alias); err != nil {
+			if errors.Is(err, storage.ErrCacheSet) {
+				log.Error(err.Error(), slog.String("op", op))
+				c.JSON(200, NewResponse(SetStatus(httpServer.StatusOK), SetAlias(httpServer.Path+req.Alias)))
+				return
+			}
 			if errors.Is(err, storage.ErrAliasAlreadyExist) {
 				c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.AliasAlreadyExist)))
 				return

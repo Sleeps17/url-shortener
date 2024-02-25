@@ -8,11 +8,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
+	"url-shortener/internal/cache"
+	mapCache "url-shortener/internal/cache/map-cache"
 	"url-shortener/internal/storage"
 )
 
 type Store struct {
 	records Records
+	cache   cache.Cache
 }
 
 type Records struct {
@@ -27,6 +30,11 @@ type Record struct {
 func MustNew(connectionString string, timeout time.Duration) *Store {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
+
+	c, err := mapCache.New(30)
+	if err != nil {
+		panic(err)
+	}
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connectionString))
 	if err != nil {
@@ -43,11 +51,24 @@ func MustNew(connectionString string, timeout time.Duration) *Store {
 
 	return &Store{
 		records: records,
+		cache:   c,
 	}
 }
 
 func (s *Store) Close(ctx context.Context) error {
-	return s.records.Database().Client().Disconnect(ctx)
+
+	err1 := s.cache.Close(ctx)
+	err2 := s.records.Database().Client().Disconnect(ctx)
+
+	if err1 != nil && err2 != nil {
+		return fmt.Errorf("%w && %w", err1, err2)
+	} else if err1 != nil {
+		return err1
+	} else if err2 != nil {
+		return err2
+	}
+
+	return nil
 }
 
 func (s *Store) SaveURL(ctx context.Context, url, alias string) error {
@@ -70,11 +91,19 @@ func (s *Store) SaveURL(ctx context.Context, url, alias string) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
+	if err := s.cache.Set(ctx, url, alias); err != nil {
+		return storage.ErrCacheSet
+	}
+
 	return nil
 }
 
 func (s *Store) GetURL(ctx context.Context, alias string) (string, error) {
 	const op = "mongodb.GetURL"
+
+	if url, err := s.cache.Get(ctx, alias); err == nil {
+		return url, nil
+	}
 
 	filter := bson.D{{"alias", alias}}
 
@@ -103,6 +132,10 @@ func (s *Store) DeleteURL(ctx context.Context, alias string) error {
 		return storage.ErrAliasNotFound
 	}
 
+	if err := s.cache.Delete(ctx, alias); err != nil {
+		return storage.ErrCacheDelete
+	}
+
 	return nil
 }
 
@@ -127,6 +160,10 @@ func (s *Store) UpdateAlias(ctx context.Context, oldAlias, newAlias string) erro
 
 	if res.ModifiedCount == 0 {
 		return storage.ErrAliasNotFound
+	}
+
+	if err := s.cache.Update(ctx, oldAlias, newAlias); err != nil {
+		return storage.ErrCacheUpdate
 	}
 
 	return nil

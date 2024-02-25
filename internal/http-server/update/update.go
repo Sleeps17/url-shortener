@@ -73,6 +73,11 @@ func Update(log *slog.Logger, s storage.Storage) gin.HandlerFunc {
 
 		err := s.UpdateAlias(c, req.Alias, req.NewAlias)
 		if err != nil {
+			if errors.Is(err, storage.ErrCacheUpdate) {
+				log.Error(err.Error(), slog.String("op", op))
+				c.JSON(200, NewResponse(SetStatus(httpServer.StatusOK), SetNewAlias(httpServer.Path+req.NewAlias)))
+				return
+			}
 			if errors.Is(err, storage.ErrAliasNotFound) {
 				c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.AliasNotFound)))
 				return
