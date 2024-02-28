@@ -1,7 +1,14 @@
 env: "local"
-mongodb_config:
+storage_config:
   connection_string: "mongodb://mongodb:27017"
   timeout: 20s
+#cache_config:
+#  capacity: 50
+cache_config:
+  connection_string: "redis:6379"
+  db: 0
+  timeout: 10s
+  capacity: 50
 http_server:
   port: ":8080"
   timeout: 5s

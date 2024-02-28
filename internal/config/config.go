@@ -7,18 +7,30 @@ import (
 )
 
 type Config struct {
-	Env        string           `yaml:"env"`
-	DBConfig   MongoDBConfig    `yaml:"mongodb_config"`
-	HttpServer HttpServerConfig `yaml:"http_server"`
+	Env         string               `yaml:"env"`
+	DBConfig    MongoDBStorageConfig `yaml:"storage_config"`
+	CacheConfig RedisCacheConfig     `yaml:"cache_config"`
+	HttpServer  HttpServerConfig     `yaml:"http_server"`
 }
 
-type SQLiteConfig struct {
+type SQLiteStorageConfig struct {
 	StoragePath string `yaml:"storage_path"`
 }
 
-type MongoDBConfig struct {
+type MongoDBStorageConfig struct {
 	ConnectionString string        `yaml:"connection_string"`
 	Timeout          time.Duration `yaml:"timeout"`
+}
+
+type MapCacheConfig struct {
+	Capacity int `yaml:"capacity"`
+}
+
+type RedisCacheConfig struct {
+	ConnectionString string        `yaml:"connection_string"`
+	DB               int           `yaml:"db"`
+	Timeout          time.Duration `yaml:"timeout"`
+	Capacity         int           `yaml:"capacity"`
 }
 
 type HttpServerConfig struct {

@@ -7,9 +7,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"time"
 	"url-shortener/internal/cache"
-	mapCache "url-shortener/internal/cache/map-cache"
+	redisCache "url-shortener/internal/cache/redis-cache"
+	"url-shortener/internal/config"
 	"url-shortener/internal/storage"
 )
 
@@ -27,16 +27,21 @@ type Record struct {
 	Url   string `bson:"url"`
 }
 
-func MustNew(connectionString string, timeout time.Duration) *Store {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func MustNew(cfg *config.Config) *Store {
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.DBConfig.Timeout)
 	defer cancel()
 
-	c, err := mapCache.New(30)
+	c, err := redisCache.New(
+		cfg.CacheConfig.ConnectionString,
+		cfg.CacheConfig.DB,
+		cfg.CacheConfig.Timeout,
+		cfg.CacheConfig.Capacity,
+	)
 	if err != nil {
 		panic(err)
 	}
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connectionString))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.DBConfig.ConnectionString))
 	if err != nil {
 		panic(err)
 	}

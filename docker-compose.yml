@@ -11,7 +11,9 @@ services:
     image: redis
     container_name: redis_db
     ports:
-      - "6379:6379"
+      - "6378:6379"
+    volumes:
+      - "redis_data:/data/cache"
   url-shortener:
     build: .
     container_name: url_shortener
@@ -20,6 +22,6 @@ services:
     depends_on:
       - mongodb
       - redis
-    #network_mode: "host"
 volumes:
   mongodb_data:
+  redis_data:

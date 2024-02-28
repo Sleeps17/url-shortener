@@ -1,5 +1,7 @@
 FROM golang:1.22
 
+MAINTAINER sleeps17
+
 WORKDIR /app
 
 COPY go.mod ./
@@ -11,7 +13,7 @@ COPY . .
 
 RUN go build -o url-shortener ./cmd/url-shortener
 
-ENV CONFIG_PATH=./config/dev_mongo.yaml
+ENV CONFIG_PATH=./config/dev.yaml
 
 EXPOSE 8080
 

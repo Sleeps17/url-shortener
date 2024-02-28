@@ -16,9 +16,9 @@ type Store struct {
 	cache cache.Cache
 }
 
-func MustNew(ctx context.Context, storagePath string) *Store {
+func MustNew(ctx context.Context, storagePath string, capacity int) *Store {
 
-	c, err := mapCache.New(storage.DefaultCacheCapacity)
+	c, err := mapCache.New(capacity)
 	if err != nil {
 		panic(err)
 	}

@@ -17,7 +17,7 @@ type Cache struct {
 	mu        sync.RWMutex
 }
 
-func New(addr string, db int, capacity int) (*Cache, error) {
+func New(addr string, db int, timeout time.Duration, capacity int) (*Cache, error) {
 	const op = "redis-cache.New"
 	client := redis.NewClient(&redis.Options{
 		Addr: addr,
@@ -113,6 +113,7 @@ func (c *Cache) Get(ctx context.Context, alias string) (string, error) {
 
 	go func() {
 		if url, err := c.client.Get(ctx, alias).Result(); err == nil {
+			fmt.Println("FROM CACHE_____________________________________________")
 			c.frequency[alias]++
 			res <- struct {
 				string

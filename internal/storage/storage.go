@@ -30,7 +30,3 @@ var (
 	ErrCacheUpdate = errors.New("failed to update cache")
 	ErrCacheDelete = errors.New("failed to delete alias from cache")
 )
-
-const (
-	DefaultCacheCapacity = 30
-)

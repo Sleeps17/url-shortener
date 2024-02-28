@@ -27,7 +27,7 @@ func main() {
 	log.Info("logger started")
 
 	// TODO: init database
-	s := mongodb.MustNew(cfg.DBConfig.ConnectionString, cfg.DBConfig.Timeout)
+	s := mongodb.MustNew(cfg)
 	log.Info("database started")
 
 	// TODO: init server
