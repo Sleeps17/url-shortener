@@ -2,10 +2,13 @@ package get
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
+	"fmt"
 	"log/slog"
+	"net/http"
 	httpServer "url-shortener/internal/http-server"
 	"url-shortener/internal/storage"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Response struct {
@@ -43,25 +46,78 @@ func Get(log *slog.Logger, s storage.Storage) gin.HandlerFunc {
 		const op = "http-server.Get"
 
 		alias := c.Param("alias")
+		username := c.Param("username")
 		if alias == "" {
 			log.Error("alias is empty", slog.String("op", op))
-			c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.BadRequest)))
+			c.JSON(
+				http.StatusBadRequest,
+				NewResponse(
+					SetStatus(httpServer.StatusError),
+					SetError(httpServer.BadRequest),
+				),
+			)
 			return
 		}
 
-		url, err := s.GetURL(c, alias)
+		if username == "" {
+			log.Error("The username is missing", slog.String("op", op))
+			c.JSON(
+				http.StatusBadRequest,
+				NewResponse(
+					SetStatus(httpServer.StatusError),
+					SetError(httpServer.BadRequest),
+				),
+			)
+			return
+		}
+
+		log.Debug(
+			"try to handle get request",
+			slog.String("username", username),
+			slog.String("alias", alias),
+			slog.String("op", op),
+		)
+
+		url, err := s.GetURL(c, username, alias)
 		if err != nil {
 			if errors.Is(err, storage.ErrAliasNotFound) {
-				c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.AliasNotFound)))
+				log.Info("alias not found", slog.String("op", op))
+				c.JSON(
+					http.StatusBadRequest,
+					NewResponse(
+						SetStatus(httpServer.StatusError),
+						SetError(httpServer.AliasNotFound),
+					),
+				)
+				return
+			} else if errors.Is(err, storage.ErrCacheGet) {
+				log.Error(
+					fmt.Sprintf("%s: %s", "failed to get url from cache", err.Error()),
+					slog.String("op", op),
+				)
+			} else {
+				log.Error(
+					fmt.Sprintf("%s: %s", "failed to get url from storage", err.Error()),
+					slog.String("op", op),
+				)
+				c.JSON(
+					http.StatusInternalServerError,
+					NewResponse(
+						SetStatus(httpServer.StatusError),
+						SetError(httpServer.InternalError),
+					),
+				)
 				return
 			}
-			log.Error(err.Error(), slog.String("op", op))
-			c.JSON(500, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.InternalError)))
-			return
 		}
 
-		log.Info("Success handle get url", slog.String("op", op), slog.String("alias", alias))
-		c.Redirect(302, url)
-		return
+		log.Info(
+			"success handle get url",
+			slog.String("username", username),
+			slog.String("alias", alias),
+			slog.String("url", url),
+			slog.String("op", op),
+		)
+		c.Redirect(http.StatusFound, url)
 	}
 }

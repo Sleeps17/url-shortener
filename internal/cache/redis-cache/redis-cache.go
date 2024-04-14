@@ -1,24 +1,26 @@
 package redisCache
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
 	"fmt"
-	"github.com/go-redis/redis/v8"
 	"math"
 	"sync"
 	"time"
 	"url-shortener/internal/cache"
+
+	"github.com/go-redis/redis/v8"
 )
 
 type Cache struct {
 	client    *redis.Client
 	capacity  int
-	frequency map[string]int
+	frequency map[cache.KeyType]int
 	mu        sync.RWMutex
 }
 
-func New(addr string, db int, timeout time.Duration, capacity int) (*Cache, error) {
-	const op = "redis-cache.New"
+func MustNew(addr string, db int, timeout time.Duration, capacity int) *Cache {
 	client := redis.NewClient(&redis.Options{
 		Addr: addr,
 		DB:   db,
@@ -28,31 +30,38 @@ func New(addr string, db int, timeout time.Duration, capacity int) (*Cache, erro
 	defer cancel()
 
 	if _, err := client.Ping(ctx).Result(); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		panic(err)
 	}
 
 	return &Cache{
 		client:    client,
 		capacity:  capacity,
-		frequency: make(map[string]int),
-	}, nil
+		frequency: make(map[cache.KeyType]int),
+	}
 }
 
 func (c *Cache) Close(ctx context.Context) error {
 	return c.client.Close()
 }
 
-func (c *Cache) Set(ctx context.Context, url, alias string) error {
+func (c *Cache) Set(ctx context.Context, url, alias, username string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	done := make(chan error)
 	defer close(done)
 
+	key := cache.KeyType{Username: username, Alias: alias}
+
 	go func() {
-		if _, err := c.client.Get(ctx, alias).Result(); err == nil {
-			c.frequency[alias]++
-			if err := c.client.Set(ctx, alias, url, 0); err != nil {
+		keyData, err := EncodeKey(key)
+		if err != nil {
+			done <- err
+			return
+		}
+		if _, err := c.client.Get(ctx, keyData).Result(); err == nil {
+			c.frequency[key]++
+			if err := c.client.Set(ctx, keyData, cache.ValueType{Url: url}, 0); err != nil {
 				done <- err.Err()
 				return
 			}
@@ -60,37 +69,43 @@ func (c *Cache) Set(ctx context.Context, url, alias string) error {
 			done <- nil
 			return
 		}
+
 		size, err := c.client.DBSize(ctx).Result()
 		if err != nil {
 			done <- err
 			return
 		}
 		if int64(c.capacity) <= size {
-			leastUsageAlias := ""
+			var leastUsageKey cache.KeyType
 			minUsage := math.MinInt
 
-			for alias, usage := range c.frequency {
+			for key, usage := range c.frequency {
 				if usage < minUsage {
-					leastUsageAlias = alias
+					leastUsageKey = key
 					minUsage = usage
 				}
 			}
 
-			if _, err := c.client.Del(ctx, leastUsageAlias).Result(); err != nil {
+			leastUsageKeyData, err := EncodeKey(leastUsageKey)
+			if err != nil {
 				done <- err
 				return
 			}
-			delete(c.frequency, leastUsageAlias)
+
+			if _, err := c.client.Del(ctx, leastUsageKeyData).Result(); err != nil {
+				done <- err
+				return
+			}
+			delete(c.frequency, leastUsageKey)
 		}
 
-		if err := c.client.Set(ctx, alias, url, 0); err != nil {
+		if err := c.client.Set(ctx, keyData, cache.ValueType{Url: url}, 0); err != nil {
 			done <- err.Err()
 			return
 		}
-		c.frequency[alias]++
+		c.frequency[key]++
 
 		done <- nil
-		return
 	}()
 
 	select {
@@ -101,7 +116,7 @@ func (c *Cache) Set(ctx context.Context, url, alias string) error {
 	}
 }
 
-func (c *Cache) Get(ctx context.Context, alias string) (string, error) {
+func (c *Cache) Get(ctx context.Context, username, alias string) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -111,14 +126,34 @@ func (c *Cache) Get(ctx context.Context, alias string) (string, error) {
 	})
 	defer close(res)
 
+	key := cache.KeyType{Username: username, Alias: alias}
+
 	go func() {
-		if url, err := c.client.Get(ctx, alias).Result(); err == nil {
-			fmt.Println("FROM CACHE_____________________________________________")
-			c.frequency[alias]++
+		keyData, err := EncodeKey(key)
+		if err != nil {
 			res <- struct {
 				string
 				error
-			}{string: url, error: nil}
+			}{"", err}
+			return
+		}
+
+		if valueData, err := c.client.Get(ctx, keyData).Bytes(); err == nil {
+			c.frequency[key]++
+
+			value, err := DecodeValue(string(valueData))
+			if err != nil {
+				res <- struct {
+					string
+					error
+				}{"", err}
+				return
+			}
+
+			res <- struct {
+				string
+				error
+			}{string: value.Url, error: nil}
 			return
 		}
 
@@ -136,15 +171,30 @@ func (c *Cache) Get(ctx context.Context, alias string) (string, error) {
 	}
 }
 
-func (c *Cache) Update(ctx context.Context, oldAlias, newAlias string) error {
+func (c *Cache) Update(ctx context.Context, username, oldAlias, newAlias string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	done := make(chan error)
 	defer close(done)
 
+	oldKey := cache.KeyType{Username: username, Alias: oldAlias}
+	newKey := cache.KeyType{Username: username, Alias: newAlias}
+
 	go func() {
-		if _, err := c.client.Rename(ctx, oldAlias, newAlias).Result(); err != nil {
+		oldKeyData, err := EncodeKey(oldKey)
+		if err != nil {
+			done <- err
+			return
+		}
+
+		newKeyData, err := EncodeKey(newKey)
+		if err != nil {
+			done <- err
+			return
+		}
+
+		if _, err := c.client.Rename(ctx, oldKeyData, newKeyData).Result(); err != nil {
 			done <- err
 			return
 		}
@@ -159,15 +209,24 @@ func (c *Cache) Update(ctx context.Context, oldAlias, newAlias string) error {
 	}
 }
 
-func (c *Cache) Delete(ctx context.Context, alias string) error {
+func (c *Cache) Delete(ctx context.Context, username, alias string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	done := make(chan error)
 	defer close(done)
 
+	key := cache.KeyType{Username: username, Alias: alias}
+
 	go func() {
-		if _, err := c.client.Del(ctx, alias).Result(); err != nil {
+
+		keyData, err := EncodeKey(key)
+		if err != nil {
+			done <- err
+			return
+		}
+
+		if _, err := c.client.Del(ctx, keyData).Result(); err != nil {
 			done <- err
 			return
 		}
@@ -181,4 +240,50 @@ func (c *Cache) Delete(ctx context.Context, alias string) error {
 	case err := <-done:
 		return err
 	}
+}
+
+func EncodeKey(key cache.KeyType) (string, error) {
+	var buff bytes.Buffer
+
+	err := gob.NewEncoder(&buff).Encode(key)
+
+	if err != nil {
+		return "", err
+	}
+
+	return buff.String(), nil
+}
+
+func EncodeValue(value cache.ValueType) (string, error) {
+	var buff bytes.Buffer
+
+	err := gob.NewEncoder(&buff).Encode(value)
+
+	if err != nil {
+		return "", err
+	}
+
+	return buff.String(), nil
+}
+
+func DecodeKey(data string) (cache.KeyType, error) {
+
+	var key cache.KeyType
+	err := gob.NewDecoder(bytes.NewReader([]byte(data))).Decode(&key)
+	if err != nil {
+		return cache.KeyType{}, err
+	}
+
+	return key, err
+}
+
+func DecodeValue(data string) (cache.ValueType, error) {
+
+	var value cache.ValueType
+	err := gob.NewDecoder(bytes.NewReader([]byte(data))).Decode(&value)
+	if err != nil {
+		return cache.ValueType{}, err
+	}
+
+	return value, err
 }

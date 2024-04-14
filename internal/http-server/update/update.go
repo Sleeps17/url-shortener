@@ -2,11 +2,14 @@ package update
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
+	"fmt"
 	"log/slog"
+	"net/http"
 	httpServer "url-shortener/internal/http-server"
 	"url-shortener/internal/lib/random"
 	"url-shortener/internal/storage"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Request struct {
@@ -56,8 +59,17 @@ func Update(log *slog.Logger, s storage.Storage) gin.HandlerFunc {
 		var req Request
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			log.Error(err.Error(), slog.String("op", op))
-			c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.BadRequest)))
+			log.Error(
+				fmt.Sprintf("%s: %s", "failed to decode request", err.Error()),
+				slog.String("op", op),
+			)
+			c.JSON(
+				http.StatusBadRequest,
+				NewResponse(
+					SetStatus(httpServer.StatusError),
+					SetError(httpServer.BadRequest),
+				),
+			)
 			return
 		}
 
@@ -65,32 +77,89 @@ func Update(log *slog.Logger, s storage.Storage) gin.HandlerFunc {
 			newAlias := random.Alias()
 			if newAlias == "" {
 				log.Error("failed to generate newAlias", slog.String("op", op))
-				c.JSON(500, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.InternalError)))
+				c.JSON(
+					http.StatusInternalServerError,
+					NewResponse(
+						SetStatus(httpServer.StatusError),
+						SetError(httpServer.InternalError),
+					),
+				)
 				return
 			}
 			req.NewAlias = newAlias
 		}
 
-		err := s.UpdateAlias(c, req.Alias, req.NewAlias)
+		username := c.GetString("username")
+
+		log.Debug(
+			"try to handle update request",
+			slog.String("username", username),
+			slog.String("alias", req.Alias),
+			slog.String("newAlias", req.NewAlias),
+			slog.String("op", op),
+		)
+
+		err := s.UpdateAlias(c, username, req.Alias, req.NewAlias)
 		if err != nil {
 			if errors.Is(err, storage.ErrCacheUpdate) {
+				// failed to update alias in cache
 				log.Error(err.Error(), slog.String("op", op))
-				c.JSON(200, NewResponse(SetStatus(httpServer.StatusOK), SetNewAlias(httpServer.Path+req.NewAlias)))
+				c.JSON(
+					http.StatusOK,
+					NewResponse(
+						SetStatus(httpServer.StatusOK),
+						SetNewAlias(httpServer.Path+req.NewAlias),
+					),
+				)
 				return
 			}
 			if errors.Is(err, storage.ErrAliasNotFound) {
-				c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.AliasNotFound)))
+				log.Info("alias not found", slog.String("op", op))
+				c.JSON(
+					http.StatusBadRequest,
+					NewResponse(
+						SetStatus(httpServer.StatusError),
+						SetError(httpServer.AliasNotFound),
+					),
+				)
 				return
 			}
 			if errors.Is(err, storage.ErrNewAliasAlreadyExists) {
-				c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.NewAliasAlreadyExists)))
+				log.Info("new alias already exists", slog.String("op", op))
+				c.JSON(
+					http.StatusBadRequest,
+					NewResponse(
+						SetStatus(httpServer.StatusError),
+						SetError(httpServer.NewAliasAlreadyExists),
+					),
+				)
 				return
 			}
-			log.Error("failed to update alias by url", slog.String("op", op))
-			c.JSON(500, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.InternalError)))
+			log.Error(
+				fmt.Sprintf("%s: %s", "failed to update alias by url", err.Error()),
+				slog.String("op", op),
+			)
+			c.JSON(
+				http.StatusBadRequest,
+				NewResponse(
+					SetStatus(httpServer.StatusError),
+					SetError(httpServer.InternalError),
+				),
+			)
+			return
 		}
 
-		c.JSON(200, NewResponse(SetStatus(httpServer.StatusOK), SetNewAlias(httpServer.Path+req.NewAlias)))
-		log.Info("success to update alias by url", slog.String("op", op), slog.String("alias", req.Alias))
+		log.Info(
+			"success to update alias by url",
+			slog.String("alias", req.Alias),
+			slog.String("op", op),
+		)
+		c.JSON(
+			http.StatusOK,
+			NewResponse(
+				SetStatus(httpServer.StatusOK),
+				SetNewAlias(httpServer.Path+username+"/"+req.NewAlias),
+			),
+		)
 	}
 }

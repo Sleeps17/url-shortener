@@ -9,60 +9,61 @@ import (
 )
 
 type Cache struct {
-	store     map[string]string
+	store     map[cache.KeyType]cache.ValueType
 	capacity  int
-	frequency map[string]int
+	frequency map[cache.KeyType]int
 	mu        sync.RWMutex
 }
 
-func New(capacity int) (*Cache, error) {
+func MustNew(capacity int) *Cache {
 	return &Cache{
-		store:     make(map[string]string),
+		store:     make(map[cache.KeyType]cache.ValueType),
 		capacity:  capacity,
-		frequency: make(map[string]int),
-	}, nil
+		frequency: make(map[cache.KeyType]int),
+	}
 }
 
 func (c *Cache) Close(ctx context.Context) error {
 	return nil
 }
 
-func (c *Cache) Set(ctx context.Context, url, alias string) error {
+func (c *Cache) Set(ctx context.Context, url, alias, username string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	done := make(chan struct{})
 	defer close(done)
 
+	key := cache.KeyType{Username: username, Alias: alias}
+
 	go func() {
-		if _, ok := c.store[alias]; ok {
-			c.frequency[alias]++
-			c.store[alias] = url
+		if _, ok := c.store[key]; ok {
+			c.frequency[key]++
+			c.store[key] = cache.ValueType{Url: url}
 
 			done <- struct{}{}
 			return
 		}
 
 		if c.capacity <= len(c.store) {
-			leastUsageAlias := ""
+			var leastUsageKey cache.KeyType
 			minUsage := math.MinInt
 
-			for alias, usage := range c.frequency {
+			for key, usage := range c.frequency {
 				if usage < minUsage {
-					leastUsageAlias = alias
+					leastUsageKey = key
 					minUsage = usage
 				}
 			}
 
-			delete(c.store, leastUsageAlias)
-			delete(c.frequency, leastUsageAlias)
+			delete(c.store, leastUsageKey)
+			delete(c.frequency, leastUsageKey)
 		}
 
-		c.store[alias] = url
-		c.frequency[alias]++
+		c.store[key] = cache.ValueType{Url: url}
+		c.frequency[key]++
 
 		done <- struct{}{}
-		return
 	}()
 
 	select {
@@ -73,7 +74,7 @@ func (c *Cache) Set(ctx context.Context, url, alias string) error {
 	}
 }
 
-func (c *Cache) Get(ctx context.Context, alias string) (string, error) {
+func (c *Cache) Get(ctx context.Context, username, alias string) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -83,14 +84,16 @@ func (c *Cache) Get(ctx context.Context, alias string) (string, error) {
 	})
 	defer close(res)
 
+	key := cache.KeyType{Username: username, Alias: alias}
+
 	go func() {
-		if url, ok := c.store[alias]; ok {
-			c.frequency[alias]++
+		if value, ok := c.store[key]; ok {
+			c.frequency[key]++
 
 			res <- struct {
 				string
 				error
-			}{string: url, error: nil}
+			}{string: value.Url, error: nil}
 			return
 		}
 
@@ -108,17 +111,20 @@ func (c *Cache) Get(ctx context.Context, alias string) (string, error) {
 	}
 }
 
-func (c *Cache) Update(ctx context.Context, oldAlias, newAlias string) error {
+func (c *Cache) Update(ctx context.Context, username, oldAlias, newAlias string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	done := make(chan struct{})
 	defer close(done)
 
+	key := cache.KeyType{Username: username, Alias: oldAlias}
+
 	go func() {
-		if url, ok := c.store[oldAlias]; ok {
-			delete(c.store, oldAlias)
-			c.store[newAlias] = url
+		if value, ok := c.store[key]; ok {
+			delete(c.store, key)
+			newKey := cache.KeyType{Username: username, Alias: newAlias}
+			c.store[newKey] = value
 
 			done <- struct{}{}
 			return
@@ -133,14 +139,16 @@ func (c *Cache) Update(ctx context.Context, oldAlias, newAlias string) error {
 	}
 }
 
-func (c *Cache) Delete(ctx context.Context, alias string) error {
+func (c *Cache) Delete(ctx context.Context, username, alias string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	done := make(chan struct{})
 
+	key := cache.KeyType{Username: username, Alias: alias}
+
 	go func() {
-		delete(c.store, alias)
+		delete(c.store, key)
 		done <- struct{}{}
 	}()
 

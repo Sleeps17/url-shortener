@@ -3,8 +3,6 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/brianvoe/gofakeit/v6"
-	"github.com/gavv/httpexpect/v2"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
@@ -13,6 +11,9 @@ import (
 	"testing"
 	"url-shortener/internal/http-server/save"
 	"url-shortener/internal/lib/random"
+
+	"github.com/brianvoe/gofakeit/v6"
+	"github.com/gavv/httpexpect/v2"
 )
 
 const (
@@ -39,12 +40,16 @@ func TestUrlShortener_HappyPath(t *testing.T) {
 func TestUrlShortener_Save(t *testing.T) {
 	tests := []struct {
 		name               string
+		username           string
+		password           string
 		body               map[string]interface{}
 		expectedStatusCode int
 		expectedErr        bool
 	}{
 		{
-			name: "Normal save 1",
+			name:     "Normal save 1",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
 				"url":   gofakeit.URL(),
 				"alias": gofakeit.Word() + "_" + gofakeit.Word(),
@@ -53,7 +58,9 @@ func TestUrlShortener_Save(t *testing.T) {
 			expectedErr:        false,
 		},
 		{
-			name: "Normal save 2",
+			name:     "Normal save 2",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
 				"url":   gofakeit.URL(),
 				"alias": "",
@@ -62,7 +69,9 @@ func TestUrlShortener_Save(t *testing.T) {
 			expectedErr:        false,
 		},
 		{
-			name: "Normal save 3",
+			name:     "Normal save 3",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
 				"url":   gofakeit.URL(),
 				"alias": "kaif",
@@ -71,34 +80,75 @@ func TestUrlShortener_Save(t *testing.T) {
 			expectedErr:        false,
 		},
 		{
-			name: "Normal save 4",
+			name:     "Normal save 4",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
-				"url":   "https://leetcode.com",
-				"alias": "leetcode",
+				"url":   "https://stepik.org/learn",
+				"alias": "gmail",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
 		{
-			name: "Normal save 5",
+			name:     "Normal save 5",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
-				"url":   "https://neetcode.io",
-				"alias": "neetcode",
+				"url":   "https://stepik.org/learn",
+				"alias": "lms",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
 		{
-			name: "Alias already exists",
+			name:     "Save already exist alias from other user 1",
+			username: "vova",
+			password: "9876",
+			body: map[string]interface{}{
+				"url":   "https://stepik.org/learn",
+				"alias": "lms",
+			},
+			expectedStatusCode: 200,
+			expectedErr:        false,
+		},
+		{
+			name:     "Save already exist alias from other user 2",
+			username: "vova",
+			password: "9876",
+			body: map[string]interface{}{
+				"url":   "https://stepik.org/learn",
+				"alias": "gmail",
+			},
+			expectedStatusCode: 200,
+			expectedErr:        false,
+		},
+		{
+			name:     "Alias already exists 1",
+			username: "vova",
+			password: "9876",
 			body: map[string]interface{}{
 				"url":   gofakeit.URL(),
-				"alias": "leetcode",
+				"alias": "lms",
 			},
 			expectedStatusCode: 400,
 			expectedErr:        true,
 		},
 		{
-			name: "Invalid JSON",
+			name:     "Alias already exists 2",
+			username: "pasha",
+			password: "1234",
+			body: map[string]interface{}{
+				"url":   gofakeit.URL(),
+				"alias": "gmail",
+			},
+			expectedStatusCode: 400,
+			expectedErr:        true,
+		},
+		{
+			name:     "Invalid JSON",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
 				"url":   500,
 				"alias": "",
@@ -107,7 +157,9 @@ func TestUrlShortener_Save(t *testing.T) {
 			expectedErr:        true,
 		},
 		{
-			name: "Invalid url",
+			name:     "Invalid url",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
 				"url":   gofakeit.Word(),
 				"alias": gofakeit.Word(),
@@ -117,6 +169,8 @@ func TestUrlShortener_Save(t *testing.T) {
 		},
 		{
 			name:               "empty body",
+			username:           "pasha",
+			password:           "1234",
 			body:               map[string]interface{}{},
 			expectedStatusCode: 400,
 			expectedErr:        true,
@@ -142,7 +196,7 @@ func TestUrlShortener_Save(t *testing.T) {
 					req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewBuffer(jsonBody))
 					assert.NoError(t, err)
 
-					req.SetBasicAuth("pasha", "1234")
+					req.SetBasicAuth(tt.username, tt.password)
 
 					resp, err := http.DefaultClient.Do(req)
 					assert.NoError(t, err)
@@ -169,30 +223,35 @@ func TestUrlShortener_Save(t *testing.T) {
 func TestUrlShortener_Redirect(t *testing.T) {
 	tests := []struct {
 		name               string
+		username           string
 		alias              string
 		expectedStatusCode int
 		expectedErr        bool
 	}{
 		{
 			name:               "Normal Redirect 1",
-			alias:              "leetcode",
+			username:           "pasha",
+			alias:              "gmail",
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
 		{
 			name:               "Normal Redirect 2",
-			alias:              "neetcode",
+			username:           "pasha",
+			alias:              "lms",
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
 		{
 			name:               "Alias not found 1",
+			username:           "pasha",
 			alias:              gofakeit.Word(),
 			expectedStatusCode: 400,
 			expectedErr:        true,
 		},
 		{
 			name:               "Alias not found 2",
+			username:           "pasha",
 			alias:              gofakeit.Word(),
 			expectedStatusCode: 400,
 			expectedErr:        true,
@@ -210,7 +269,7 @@ func TestUrlShortener_Redirect(t *testing.T) {
 					u := url.URL{
 						Scheme: scheme,
 						Host:   host,
-						Path:   tt.alias,
+						Path:   tt.username + "/" + tt.alias,
 					}
 
 					req, err := http.NewRequest(http.MethodGet, u.String(), nil)
@@ -234,30 +293,38 @@ func TestUrlShortener_Redirect(t *testing.T) {
 func TestUrlShortener_Update(t *testing.T) {
 	tests := []struct {
 		name               string
+		username           string
+		password           string
 		body               map[string]interface{}
 		expectedStatusCode int
 		expectedErr        bool
 	}{
 		{
-			name: "Normal update 1",
+			name:     "Normal update 1",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
-				"alias":     "leetcode",
-				"new_alias": "zayac",
+				"alias":     "gmail",
+				"new_alias": "mail",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
 		{
-			name: "Normal update 2",
+			name:     "Normal update 2",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
-				"alias":     "neetcode",
-				"new_alias": "neet",
+				"alias":     "lms",
+				"new_alias": "yandex_lms",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
 		{
-			name: "Alias does not exists",
+			name:     "Alias does not exists",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
 				"alias":     gofakeit.Word(),
 				"new_alias": gofakeit.Word(),
@@ -266,10 +333,12 @@ func TestUrlShortener_Update(t *testing.T) {
 			expectedErr:        true,
 		},
 		{
-			name: "NewAlias already exists",
+			name:     "NewAlias already exists",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
-				"alias":     "neet",
-				"new_alias": "zayac",
+				"alias":     "mail",
+				"new_alias": "kaif",
 			},
 			expectedStatusCode: 400,
 			expectedErr:        true,
@@ -295,7 +364,7 @@ func TestUrlShortener_Update(t *testing.T) {
 					req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(jsonBody))
 					assert.NoError(t, err)
 
-					req.SetBasicAuth("pasha", "1234")
+					req.SetBasicAuth(tt.username, tt.password)
 
 					resp, err := http.DefaultClient.Do(req)
 					assert.NoError(t, err)
@@ -320,28 +389,36 @@ func TestUrlShortener_Update(t *testing.T) {
 func TestUrlShortener_Delete(t *testing.T) {
 	tests := []struct {
 		name               string
+		username           string
+		password           string
 		body               map[string]interface{}
 		expectedStatusCode int
 		expectedErr        bool
 	}{
 		{
-			name: "Normal delete 1",
+			name:     "Normal delete 1",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
-				"alias": "zayac",
+				"alias": "mail",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
 		{
-			name: "Normal delete 2",
+			name:     "Normal delete 2",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
-				"alias": "neet",
+				"alias": "yandex_lms",
 			},
 			expectedStatusCode: 200,
 			expectedErr:        false,
 		},
 		{
-			name: "Normal delete 3",
+			name:     "Normal delete 3",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
 				"alias": "kaif",
 			},
@@ -349,7 +426,29 @@ func TestUrlShortener_Delete(t *testing.T) {
 			expectedErr:        false,
 		},
 		{
-			name: "Alias not found 1",
+			name:     "Normal delete 4",
+			username: "vova",
+			password: "9876",
+			body: map[string]interface{}{
+				"alias": "lms",
+			},
+			expectedStatusCode: 200,
+			expectedErr:        false,
+		},
+		{
+			name:     "Normal delete 5",
+			username: "vova",
+			password: "9876",
+			body: map[string]interface{}{
+				"alias": "gmail",
+			},
+			expectedStatusCode: 200,
+			expectedErr:        false,
+		},
+		{
+			name:     "Alias not found 1",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
 				"alias": gofakeit.Word(),
 			},
@@ -357,7 +456,9 @@ func TestUrlShortener_Delete(t *testing.T) {
 			expectedErr:        true,
 		},
 		{
-			name: "Alias not found 2",
+			name:     "Alias not found 2",
+			username: "pasha",
+			password: "1234",
 			body: map[string]interface{}{
 				"alias": gofakeit.Word(),
 			},
@@ -385,7 +486,7 @@ func TestUrlShortener_Delete(t *testing.T) {
 					req, err := http.NewRequest(http.MethodDelete, u.String(), bytes.NewBuffer(jsonBody))
 					assert.NoError(t, err)
 
-					req.SetBasicAuth("pasha", "1234")
+					req.SetBasicAuth(tt.username, tt.password)
 
 					resp, err := http.DefaultClient.Do(req)
 					assert.NoError(t, err)

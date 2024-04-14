@@ -1,7 +1,9 @@
 env: "local"
 storage_config:
+  timeout: 10s
   connection_string: "mongodb://mongodb:27017"
-  timeout: 20s
+  db_name: "url-shortener"
+  collection_name: "urls"
 #cache_config:
 #  capacity: 50
 cache_config:

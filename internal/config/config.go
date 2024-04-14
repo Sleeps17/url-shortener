@@ -1,39 +1,43 @@
 package config
 
 import (
-	"github.com/ilyakaznacheev/cleanenv"
 	"os"
 	"time"
+
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
 	Env         string               `yaml:"env"`
-	DBConfig    MongoDBStorageConfig `yaml:"storage_config"`
-	CacheConfig RedisCacheConfig     `yaml:"cache_config"`
-	HttpServer  HttpServerConfig     `yaml:"http_server"`
+	DBConfig    mongoDBStorageConfig `yaml:"storage_config"`
+	CacheConfig redisCacheConfig     `yaml:"cache_config"`
+	HttpServer  httpServerConfig     `yaml:"http_server"`
 }
 
-type SQLiteStorageConfig struct {
-	StoragePath string `yaml:"storage_path"`
+type sqliteStorageConfig struct {
+	StoragePath string        `yaml:"storage_path"`
+	Timeout     time.Duration `yaml:"timeout"`
 }
 
-type MongoDBStorageConfig struct {
+type mongoDBStorageConfig struct {
 	ConnectionString string        `yaml:"connection_string"`
+	DBName           string        `yaml:"db_name"`
+	CollectionName   string        `yaml:"collection_name"`
 	Timeout          time.Duration `yaml:"timeout"`
 }
 
-type MapCacheConfig struct {
+type mapCacheConfig struct {
 	Capacity int `yaml:"capacity"`
 }
 
-type RedisCacheConfig struct {
+type redisCacheConfig struct {
 	ConnectionString string        `yaml:"connection_string"`
 	DB               int           `yaml:"db"`
 	Timeout          time.Duration `yaml:"timeout"`
 	Capacity         int           `yaml:"capacity"`
 }
 
-type HttpServerConfig struct {
+type httpServerConfig struct {
 	Port        string        `yaml:"port"`
 	Timeout     time.Duration `yaml:"timeout"`
 	IdleTimeout time.Duration `yaml:"idle_timeout"`

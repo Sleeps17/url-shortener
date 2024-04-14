@@ -8,13 +8,13 @@ import (
 // Storage interface for storage
 type Storage interface {
 	// SaveURL saves {url} by {alias}
-	SaveURL(ctx context.Context, url, alias string) error
+	SaveURL(ctx context.Context, url, alias, username string) error
 	// GetURL returns {url} by {alias}
-	GetURL(ctx context.Context, alias string) (string, error)
+	GetURL(ctx context.Context, username, alias string) (string, error)
 	// DeleteURL deletes {url} by {alias}
-	DeleteURL(ctx context.Context, alias string) error
+	DeleteURL(ctx context.Context, username, alias string) error
 	//UpdateAlias replaces {alias} for {url}
-	UpdateAlias(ctx context.Context, oldAlias, newAlias string) error
+	UpdateAlias(ctx context.Context, username, oldAlias, newAlias string) error
 
 	Close(ctx context.Context) error
 }
@@ -26,7 +26,8 @@ var (
 )
 
 var (
-	ErrCacheSet    = errors.New("failed too save url in cache")
+	ErrCacheSet    = errors.New("failed to save url in cache")
+	ErrCacheGet    = errors.New("failed to get url in cache")
 	ErrCacheUpdate = errors.New("failed to update cache")
 	ErrCacheDelete = errors.New("failed to delete alias from cache")
 )

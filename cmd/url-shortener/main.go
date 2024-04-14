@@ -9,9 +9,11 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	redisCache "url-shortener/internal/cache/redis-cache"
 	"url-shortener/internal/config"
 	"url-shortener/internal/http-server/delete"
 	"url-shortener/internal/http-server/get"
+	"url-shortener/internal/http-server/middleware"
 	"url-shortener/internal/http-server/save"
 	"url-shortener/internal/http-server/update"
 	"url-shortener/internal/logger"
@@ -26,18 +28,29 @@ func main() {
 	log := logger.MustSetup(cfg.Env)
 	log.Info("logger started")
 
+	// TODO: init cache
+	c := redisCache.MustNew(cfg.CacheConfig.ConnectionString, cfg.CacheConfig.DB, cfg.CacheConfig.Timeout, cfg.CacheConfig.Capacity)
+
 	// TODO: init database
-	s := mongodb.MustNew(cfg)
+	s := mongodb.MustNew(
+		cfg.DBConfig.Timeout,
+		c,
+		cfg.DBConfig.ConnectionString,
+		cfg.DBConfig.DBName,
+		cfg.DBConfig.CollectionName,
+	)
 	log.Info("database started")
 
 	// TODO: init server
 	router := gin.Default()
+	router.Use(middleware.GetCreator())
 	a := router.Group("/", gin.BasicAuth(gin.Accounts{
 		"pasha": "1234",
+		"vova":  "9876",
 	}))
 
 	a.POST("/", save.Save(log, s))
-	router.GET("/:alias", get.Get(log, s))
+	router.GET("/:username/:alias", get.Get(log, s))
 	a.DELETE("/", delete.Delete(log, s))
 	a.PUT("/", update.Update(log, s))
 

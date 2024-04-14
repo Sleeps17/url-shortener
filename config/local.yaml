@@ -1,6 +1,12 @@
 env: "local" #local, dev, prod
+#storage_config:
+#  storage_path: "./storage/data.db"
+#  timeout: 10s
 storage_config:
-  storage_path: "./storage/data.db"
+    timeout: 10s
+    connection_string: "mongodb://mongodb:27017"
+    db_name: "url-shortener"
+    collection_name: "urls"
 cache_config:
   capacity: 50
 http_server:

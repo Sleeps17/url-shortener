@@ -2,10 +2,13 @@ package delete
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
+	"fmt"
 	"log/slog"
+	"net/http"
 	httpServer "url-shortener/internal/http-server"
 	"url-shortener/internal/storage"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Request struct {
@@ -47,27 +50,67 @@ func Delete(log *slog.Logger, s storage.Storage) gin.HandlerFunc {
 
 		var req Request
 		if err := c.ShouldBindJSON(&req); err != nil {
-			log.Error(err.Error(), slog.String("op", op))
-			c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.BadRequest)))
+			log.Error(
+				fmt.Sprintf("%s: %s", "failed to decode request", err.Error()),
+				slog.String("op", op),
+			)
+			c.JSON(
+				http.StatusBadRequest,
+				NewResponse(
+					SetStatus(httpServer.StatusError),
+					SetError(httpServer.BadRequest),
+				),
+			)
 			return
 		}
 
-		if err := s.DeleteURL(c, req.Alias); err != nil {
+		username := c.GetString("username")
+
+		log.Debug(
+			"try to handle delete request",
+			slog.String("username", username),
+			slog.String("alias", req.Alias),
+			slog.String("op", op),
+		)
+
+		if err := s.DeleteURL(c, username, req.Alias); err != nil {
 			if errors.Is(err, storage.ErrCacheDelete) {
+				// failed to delete alias from cache
 				log.Error(err.Error(), slog.String("op", op))
-				c.JSON(200, NewResponse(SetStatus(httpServer.StatusOK)))
+				c.JSON(
+					http.StatusBadRequest,
+					NewResponse(SetStatus(httpServer.StatusOK)),
+				)
 				return
 			}
 			if errors.Is(err, storage.ErrAliasNotFound) {
-				c.JSON(400, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.AliasNotFound)))
+				log.Info("alias not found", slog.String("op", op))
+				c.JSON(
+					http.StatusBadRequest,
+					NewResponse(
+						SetStatus(httpServer.StatusError),
+						SetError(httpServer.AliasNotFound),
+					),
+				)
 				return
 			}
 			log.Error(err.Error(), slog.String("op", op))
-			c.JSON(500, NewResponse(SetStatus(httpServer.StatusError), SetError(httpServer.InternalError)))
+			c.JSON(
+				http.StatusInternalServerError,
+				NewResponse(
+					SetStatus(httpServer.StatusError),
+					SetError(httpServer.InternalError),
+				),
+			)
 			return
 		}
 
-		c.JSON(200, NewResponse(SetStatus(httpServer.StatusOK)))
-		log.Info("success handle delete url", slog.String("op", op), slog.String("alias", req.Alias))
+		log.Info(
+			"success handle delete url",
+			slog.String("username", username),
+			slog.String("alias", req.Alias),
+			slog.String("op", op),
+		)
+		c.JSON(http.StatusOK, NewResponse(SetStatus(httpServer.StatusOK)))
 	}
 }
