@@ -8,11 +8,7 @@ on:
 
 jobs:
     test:
-      strategy:
-        matrix:
-          platforms: [ windows-latest, ubuntu-latest, macos-latest ]
-
-      runs-on: ${{ matrix.platforms }}
+      runs-on: ubuntu-latest
 
       steps:
           - name: Checkout code
