@@ -1,0 +1,30 @@
+name: Test my app
+
+on:
+    push:
+        branches: [ master ]
+    pull_request:
+        branches: [ master ]
+
+jobs:
+    test:
+        strategy:
+            matrix:
+                go-version: [ 1.21.x, 1.22.x, 1.23.x ]
+                platform: [ ubuntu-latest, macos-latest, windows-latest ]
+
+        runs-on: ${{ matrix.platform }}
+
+        steps:
+            - name: Install Go
+              uses: actions/setup-go@v2
+              with:
+                  go-version: ${{ matrix.go-version }}
+
+            - name: Up serever
+              run: |
+                docker-compose up --build
+                sleep 60
+
+            - name: Run tests
+              run: go test ./tests
