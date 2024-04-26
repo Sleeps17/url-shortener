@@ -8,16 +8,19 @@ on:
 
 jobs:
     test:
-        runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          platforms: [ "windows-latest", "ubuntu-latest", "macos-latest" ]
 
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v2
+      runs-on: ${{ matrix.platforms }}
 
-            - name: Up server
-              run: |
-                docker-compose up --build -d
-                sleep 60
+      steps:
+          - name: Checkout code
+            uses: actions/checkout@v2
 
-            - name: Run tests
-              run: go test ./tests
+          - name: Up server
+            run: |
+              docker-compose up --build -d
+
+          - name: Run tests
+            run: go test ./tests
