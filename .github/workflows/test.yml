@@ -13,10 +13,10 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v2
-            
+
             - name: Up server
               run: |
-                docker-compose up --build
+                docker-compose up --build -d
                 sleep 60
 
             - name: Run tests
