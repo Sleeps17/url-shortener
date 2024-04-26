@@ -141,7 +141,7 @@ func Save(log *slog.Logger, s storage.Storage) gin.HandlerFunc {
 			}
 			if errors.Is(err, storage.ErrAliasAlreadyExist) {
 				log.Info(
-					fmt.Sprintf("%s", "alias already exist"),
+					"alias already exist",
 					slog.String("op", op),
 				)
 				c.JSON(
