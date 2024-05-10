@@ -9,35 +9,28 @@ import (
 	"net/url"
 	"sync"
 	"testing"
-	"url-shortener/internal/http-server/save"
-	"url-shortener/internal/lib/random"
+	"url-shortener/tests/suite"
 
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/gavv/httpexpect/v2"
 )
 
-const (
-	host   = "localhost:8080"
+var (
+	host   = "localhost"
 	scheme = "http"
 )
 
-func TestUrlShortener_HappyPath(t *testing.T) {
+func init() {
+	_, st := suite.New(&testing.T{})
+
+	host += st.Cfg.HttpServer.Port
+}
+
+func TestUrlShortener_Save(t *testing.T) {
 	u := url.URL{
 		Scheme: scheme,
 		Host:   host,
 	}
 
-	e := httpexpect.Default(t, u.String())
-
-	e.POST("/").
-		WithJSON(save.Request{Url: gofakeit.URL(), Alias: random.Alias(10)}).
-		WithBasicAuth("pasha", "1234").
-		Expect().
-		Status(200).
-		JSON().Object().ContainsKey("alias")
-}
-
-func TestUrlShortener_Save(t *testing.T) {
 	tests := []struct {
 		name               string
 		username           string
@@ -175,11 +168,6 @@ func TestUrlShortener_Save(t *testing.T) {
 			expectedStatusCode: 400,
 			expectedErr:        true,
 		},
-	}
-
-	u := url.URL{
-		Scheme: scheme,
-		Host:   host,
 	}
 
 	var wg sync.WaitGroup

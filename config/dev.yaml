@@ -1,17 +1,15 @@
-env: "local"
+env: "prod" #local, dev, prod
 storage_config:
   timeout: 10s
   connection_string: "mongodb://mongodb:27017"
   db_name: "url-shortener"
   collection_name: "urls"
-#cache_config:
-#  capacity: 50
 cache_config:
   connection_string: "redis:6379"
   db: 0
   timeout: 10s
   capacity: 50
 http_server:
-  port: ":8080"
+  port: ":8081"
   timeout: 5s
   idle_timeout: 30s

@@ -1,0 +1,20 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - ./create-network.sh
+      - docker-compose build
+  up:
+    cmds:
+      - ./create-network.sh
+      - docker-compose up -d
+  down:
+    cmds:
+      - docker-compose down
+  test:
+    cmds:
+      - ./create-network.sh
+      - docker-compose up -d
+      - go test -count=1 ./tests
+      - docker-compose down

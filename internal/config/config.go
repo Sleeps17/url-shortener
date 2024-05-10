@@ -44,15 +44,26 @@ type HttpServerConfig struct {
 }
 
 func MustLoad() *Config {
-	path := os.Getenv("CONFIG_PATH")
+	configPath := os.Getenv("CONFIG_PATH")
 
-	if path == "" {
+	if configPath == "" {
 		panic("CONFIG_PATH is not set")
 	}
 
 	var cfg Config
 
-	err := cleanenv.ReadConfig(path, &cfg)
+	err := cleanenv.ReadConfig(configPath, &cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	return &cfg
+}
+
+func MustLoadByPath(configPath string) *Config {
+	var cfg Config
+
+	err := cleanenv.ReadConfig(configPath, &cfg)
 	if err != nil {
 		panic(err)
 	}

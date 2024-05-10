@@ -14,9 +14,9 @@ jobs:
           - name: Checkout code
             uses: actions/checkout@v4
 
-          - name: Up server
-            run: |
-              docker-compose up --build -d
+          - name: Build image
+            run: task build
 
           - name: Run tests
-            run: go test ./tests
+            run: |
+              task test

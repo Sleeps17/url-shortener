@@ -1,20 +1,28 @@
-FROM golang:1.22
+FROM golang:1.22-alpine AS builder
 
-MAINTAINER sleeps17
+LABEL MAINTAINER="sleeps17"
 
-WORKDIR /app
+WORKDIR /go/src/app
 
-COPY go.mod ./
-COPY go.sum ./
+RUN apk add upx
 
+RUN apk --no-cache add git bash make gcc musl-dev
+
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-RUN go build -o url-shortener ./cmd/url-shortener
+RUN go build -ldflags="-s -w" -o /go/bin/url-shortener ./cmd/url-shortener
+RUN upx -9 /go/bin/url-shortener
 
-ENV CONFIG_PATH=./config/dev.yaml
+FROM alpine:latest AS runner
 
-EXPOSE 8080
+COPY --from=builder /go/bin/url-shortener ./
+COPY config/dev.yaml config/dev.yaml
+
+ENV CONFIG_PATH=/config/dev.yaml
+
+EXPOSE 8081
 
 CMD ["./url-shortener"]

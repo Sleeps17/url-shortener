@@ -2,26 +2,38 @@ version: '3'
 services:
   mongodb:
     image: mongo
-    container_name: mongodb
+    container_name: url-shortener-mongodb
     ports:
       - "27016:27017"
+    networks:
+      - proxynet
     volumes:
       - "mongodb_data:/data/db"
   redis:
     image: redis
-    container_name: redis_db
+    container_name: url-shortener-redis
     ports:
       - "6378:6379"
+    networks:
+      - proxynet
     volumes:
       - "redis_data:/data/cache"
   url-shortener:
     build: .
-    container_name: url_shortener
+    container_name: url-shortener-service
     ports:
-      - "8080:8080"
+      - "8081:8081"
+    networks:
+      - proxynet
     depends_on:
       - mongodb
       - redis
+
+networks:
+  proxynet:
+    external:
+      name: proxynet
+
 volumes:
   mongodb_data:
   redis_data:
