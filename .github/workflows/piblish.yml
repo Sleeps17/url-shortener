@@ -73,4 +73,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/linker:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/url-shortener:latest
