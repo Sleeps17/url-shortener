@@ -3,13 +3,14 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/url"
 	"sync"
 	"testing"
 	"url-shortener/tests/suite"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/brianvoe/gofakeit/v6"
 )
